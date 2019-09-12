@@ -1,0 +1,10 @@
+--- pkg-plist	2019-09-03 12:56:16.776562000 +0100
++++ pkg-plist.qora	2019-09-03 12:56:33.704214000 +0100
+@@ -632,6 +632,7 @@
+ lib/wireshark/plugins/3.0/codecs/l16mono.so
+ lib/wireshark/plugins/3.0/epan/ethercat.so
+ lib/wireshark/plugins/3.0/epan/gryphon.so
++lib/wireshark/plugins/3.0/epan/qora.so
+ lib/wireshark/plugins/3.0/epan/irda.so
+ lib/wireshark/plugins/3.0/epan/mate.so
+ lib/wireshark/plugins/3.0/epan/opcua.so
