@@ -171,6 +171,7 @@ static int hf_transactions_sig = -1;
 static int hf_generic_sig = -1;
 static int hf_big_decimal = -1;
 static int hf_online_accounts_bytes = -1;
+static int hf_online_accounts_timestamp = -1;
 static int hf_timestamp_signatures_count = -1;
 
 static expert_field ei_qora_late_reply = EI_INIT;
@@ -270,10 +271,17 @@ static void subdissect_block(tvbuff_t *tvb, gint *offset, packet_info *pinfo, pr
 		proto_item *timestamp_signatures_count_ti = proto_tree_add_item_ret_uint(sub_tree, hf_timestamp_signatures_count, tvb, *offset, 4, ENC_BIG_ENDIAN, &timestamp_signatures_count);
 		*offset += 4;
 
-		proto_tree *ts_sig_tree = proto_item_add_subtree(timestamp_signatures_count_ti, ett_qora_sub);
-		for (guint i = 0; i < timestamp_signatures_count; ++i) {
-			proto_tree_add_item(ts_sig_tree, hf_generic_sig, tvb, *offset, 64, ENC_NA);
-			*offset += 64;
+		if (timestamp_signatures_count > 0) {
+			proto_tree *ts_sig_tree = proto_item_add_subtree(timestamp_signatures_count_ti, ett_qora_sub);
+
+			// Online accounts timestamp only present if there are actual signatures
+			proto_tree_add_item(ts_sig_tree, hf_online_accounts_timestamp, tvb, *offset, 8, ENC_TIME_MSECS);
+			*offset += 8;
+
+			for (guint i = 0; i < timestamp_signatures_count; ++i) {
+				proto_tree_add_item(ts_sig_tree, hf_generic_sig, tvb, *offset, 64, ENC_NA);
+				*offset += 64;
+			}
 		}
 	}
 }
@@ -1077,6 +1085,15 @@ void proto_register_qora(void) {
 				"Online accounts bytes",
 				"qora.online_accounts_bytes",
 				FT_UINT_BYTES, BASE_NONE | BASE_ALLOW_ZERO,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&hf_online_accounts_timestamp, {
+				"Online accounts timestamp",
+				"qora.online_accounts_timestamp",
+				FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
 				NULL, 0x0,
 				NULL, HFILL
 			}
