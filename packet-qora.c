@@ -171,8 +171,9 @@ static int hf_transactions_sig = -1;
 static int hf_generic_sig = -1;
 static int hf_big_decimal = -1;
 static int hf_online_accounts_bytes = -1;
+static int hf_online_accounts_count = -1;
 static int hf_online_accounts_timestamp = -1;
-static int hf_timestamp_signatures_count = -1;
+static int hf_online_accounts_signatures_count = -1;
 
 static expert_field ei_qora_late_reply = EI_INIT;
 static expert_field ei_qora_missing_reply = EI_INIT;
@@ -262,23 +263,26 @@ static void subdissect_block(tvbuff_t *tvb, gint *offset, packet_info *pinfo, pr
 
 	if (block_version >= 4 && tvb_reported_length(tvb) > (guint) *offset) {
 		// Online accounts
+		proto_tree_add_item(sub_tree, hf_online_accounts_count, tvb, *offset, 4, ENC_BIG_ENDIAN);
+		*offset += 4;
+
 		guint online_accounts_length;
 		proto_tree_add_item_ret_length(sub_tree, hf_online_accounts_bytes, tvb, *offset, 4, ENC_BIG_ENDIAN | ENC_NA, &online_accounts_length);
 		*offset += online_accounts_length;
 
-		// Timestamp signatures
-		guint timestamp_signatures_count;
-		proto_item *timestamp_signatures_count_ti = proto_tree_add_item_ret_uint(sub_tree, hf_timestamp_signatures_count, tvb, *offset, 4, ENC_BIG_ENDIAN, &timestamp_signatures_count);
+		// Online accounts signatures
+		guint online_accounts_signatures_count;
+		proto_item *online_accounts_signatures_count_ti = proto_tree_add_item_ret_uint(sub_tree, hf_online_accounts_signatures_count, tvb, *offset, 4, ENC_BIG_ENDIAN, &online_accounts_signatures_count);
 		*offset += 4;
 
-		if (timestamp_signatures_count > 0) {
-			proto_tree *ts_sig_tree = proto_item_add_subtree(timestamp_signatures_count_ti, ett_qora_sub);
+		if (online_accounts_signatures_count > 0) {
+			proto_tree *ts_sig_tree = proto_item_add_subtree(online_accounts_signatures_count_ti, ett_qora_sub);
 
 			// Online accounts timestamp only present if there are actual signatures
 			proto_tree_add_item(ts_sig_tree, hf_online_accounts_timestamp, tvb, *offset, 8, ENC_TIME_MSECS);
 			*offset += 8;
 
-			for (guint i = 0; i < timestamp_signatures_count; ++i) {
+			for (guint i = 0; i < online_accounts_signatures_count; ++i) {
 				proto_tree_add_item(ts_sig_tree, hf_generic_sig, tvb, *offset, 64, ENC_NA);
 				*offset += 64;
 			}
@@ -426,6 +430,10 @@ static void dissect_block_summaries(tvbuff_t *tvb, gint offset, packet_info *pin
 	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", number_entries);
 	offset += 4;
 
+	// Try to determine if block summaries include online accounts count based on reported buffer length
+	guint buffer_remaining = tvb_reported_length(tvb) - offset;
+	char includesOnlineAccountsCount = buffer_remaining >= number_entries * (4 + 64 + 32 + 4); // Note extra 4 bytes
+
 	for (guint i = 0; i < number_entries; ++i) {
 		proto_item *entry_index_ti = proto_tree_add_uint(sub_tree, hf_entry_index, tvb, offset, 0, i);
 		proto_tree *entry_tree = proto_item_add_subtree(entry_index_ti, ett_qora_sub);
@@ -438,6 +446,11 @@ static void dissect_block_summaries(tvbuff_t *tvb, gint offset, packet_info *pin
 
 		proto_tree_add_item(entry_tree, hf_public_key, tvb, offset, 32, ENC_NA);
 		offset += 32;
+
+		if (includesOnlineAccountsCount) {
+			proto_tree_add_item(entry_tree, hf_online_accounts_count, tvb, offset, 4, ENC_BIG_ENDIAN);
+			offset += 4;
+		}
 	}
 }
 
@@ -1090,6 +1103,15 @@ void proto_register_qora(void) {
 			}
 		},
 		{
+			&hf_online_accounts_count, {
+				"Online accounts count",
+				"qora.online_accounts_count",
+				FT_UINT32, BASE_DEC,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
 			&hf_online_accounts_timestamp, {
 				"Online accounts timestamp",
 				"qora.online_accounts_timestamp",
@@ -1099,9 +1121,9 @@ void proto_register_qora(void) {
 			}
 		},
 		{
-			&hf_timestamp_signatures_count, {
-				"Timestamp signatures count",
-				"qora.timestamp_signatures_count",
+			&hf_online_accounts_signatures_count, {
+				"Online accounts signatures count",
+				"qora.online_accounts_signatures_count",
 				FT_UINT32, BASE_DEC,
 				NULL, 0x0,
 				NULL, HFILL
