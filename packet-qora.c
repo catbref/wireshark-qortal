@@ -95,8 +95,16 @@ static const value_string transaction_type_names[] = {
 	{ 35, "UPDATE_ASSET" },
 	{ 36, "ACCOUNT_FLAGS" },
 	{ 37, "ENABLE_FORGING" },
-	{ 38, "PROXY_FORGING" }
+	{ 38, "PROXY_FORGING" },
+	{ 0, NULL }
 };
+
+static const value_string net_names[] = {
+	{ 0x514f5254, "QORTAL mainnet" },
+	{ 0x716f7254, "QORTAL testnet" },
+	{ 0, NULL }
+};
+
 
 typedef struct {
 	guint32 req_frame;
@@ -202,6 +210,10 @@ static guint subdissect_transaction(tvbuff_t *tvb, gint *offset, packet_info *pi
 }
 
 static void subdissect_block(tvbuff_t *tvb, gint *offset, packet_info *pinfo, proto_tree *sub_tree, void *data _U_) {
+	guint32 magic = tvb_get_guint32(tvb, 0, ENC_BIG_ENDIAN);
+	const gchar *net_name = try_val_to_str(magic, net_names);
+	char is_qortal = net_name != NULL && strstr(net_name, "QORTAL") != NULL;
+
 	guint height;
 	proto_tree_add_item_ret_uint(sub_tree, hf_height, tvb, *offset, 4, ENC_BIG_ENDIAN, &height);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "block_height=%d ", height);
@@ -217,9 +229,11 @@ static void subdissect_block(tvbuff_t *tvb, gint *offset, packet_info *pinfo, pr
 	proto_tree_add_item(sub_tree, hf_block_ref, tvb, *offset, 128, ENC_NA);
 	*offset += 128;
 
-	// generatingBalance
-	proto_tree_add_item(sub_tree, hf_big_decimal, tvb, *offset, 8, ENC_BIG_ENDIAN);
-	*offset += 8;
+	// generatingBalance?
+	if (!is_qortal) {
+		proto_tree_add_item(sub_tree, hf_big_decimal, tvb, *offset, 8, ENC_BIG_ENDIAN);
+		*offset += 8;
+	}
 
 	proto_tree_add_item(sub_tree, hf_public_key, tvb, *offset, 32, ENC_NA);
 	*offset += 32;
@@ -781,7 +795,7 @@ void proto_register_qora(void) {
 				"MAGIC",
 				"qora.magic",
 				FT_UINT32, BASE_HEX,
-				NULL, 0x0,
+				VALS(net_names), 0x0,
 				NULL, HFILL
 			}
 		},
