@@ -1,1 +1,1 @@
-# Wireshark plugin for dissecting Qora protocol
+# Wireshark plugin for dissecting Qortal protocol

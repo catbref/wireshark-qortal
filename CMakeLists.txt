@@ -10,10 +10,10 @@
 include(WiresharkPlugin)
 
 # Plugin name and version info (major minor micro extra)
-set_module_info(qora 0 0 1 0)
+set_module_info(qortal 0 0 1 0)
 
 set(DISSECTOR_SRC
-	packet-qora.c
+	packet-qortal.c
 )
 
 set(PLUGIN_FILES
@@ -34,16 +34,16 @@ register_plugin_files(plugin.c
 	${DISSECTOR_SRC}
 )
 
-add_plugin_library(qora epan)
+add_plugin_library(qortal epan)
 
-target_link_libraries(qora epan)
+target_link_libraries(qortal epan)
 
-install_plugin(qora epan)
+install_plugin(qortal epan)
 
 file(GLOB DISSECTOR_HEADERS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*.h")
 CHECKAPI(
 	NAME
-	  qora
+	  qortal
 	SWITCHES
 	  -g abort -g termoutput -build
 	SOURCES

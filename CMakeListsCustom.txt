@@ -11,7 +11,7 @@
 
 # Fail CMake stage if any of these plugins are missing from source tree
 set(CUSTOM_PLUGIN_SRC_DIR
-	plugins/epan/qora
+	plugins/epan/qortal
 #	private_plugins/foo
 # or
 #	plugins/epan/foo
