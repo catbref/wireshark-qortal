@@ -49,8 +49,19 @@ static const value_string message_type_names[] = {
 	{ 71, "GET_BLOCK_SUMMARIES" },
 	{ 80, "ONLINE_ACCOUNTS" },
 	{ 81, "GET_ONLINE_ACCOUNTS" },
+	{ 82, "ONLINE_ACCOUNTS_V2" },
+	{ 83, "GET_ONLINE_ACCOUNTS_V2" },
 	{ 90, "ARBITRARY_DATA" },
 	{ 91, "GET_ARBITRARY_DATA" },
+	{ 100, "BLOCKS" },
+	{ 101, "GET_BLOCKS" },
+	{ 110, "ARBITRARY_DATA_FILE" },
+	{ 111, "GET_ARBITRARY_DATA_FILE" },
+	{ 120, "ARBITRARY_DATA_FILE_LIST" },
+	{ 121, "GET_ARBITRARY_DATA_FILE_LIST" },
+	{ 130, "ARBITRARY_SIGNATURES" },
+	{ 140, "ONLINE_TRADES" },
+	{ 141, "GET_ONLINE_TRADES" },
 	{ 0, NULL }
 };
 
@@ -132,6 +143,10 @@ static int msg_block_summaries = -1;
 static int msg_get_block_summaries = -1;
 static int msg_online_accounts = -1;
 static int msg_get_online_accounts = -1;
+static int msg_online_accounts_v2 = -1;
+static int msg_get_online_accounts_v2 = -1;
+static int msg_online_trades = -1;
+static int msg_get_online_trades = -1;
 
 static gint ett_qortal = -1;
 static gint ett_qortal_sub = -1;
@@ -160,6 +175,8 @@ static int hf_transaction_sig = -1;
 static int hf_transaction_ref = -1;
 static int hf_timestamp = -1;
 static int hf_public_key = -1;
+static int hf_raw_address = -1;
+static int hf_address = -1;
 static int hf_number_entries = -1;
 static int hf_transaction_count = -1;
 static int hf_tx_group_id = -1;
@@ -493,6 +510,173 @@ static void dissect_get_online_accounts(tvbuff_t *tvb, gint offset, packet_info 
 	}
 }
 
+static void dissect_online_accounts_v2(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, gint data_size) {
+	gint start_offset = offset;
+
+	proto_item *ti = proto_tree_add_item(tree, msg_online_accounts_v2, tvb, offset, -1, ENC_NA);
+	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
+
+	guint number_entries;
+	proto_item *number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+	offset += 4;
+
+	guint total_entries = 0;
+
+	while (number_entries > 0) {
+		total_entries += number_entries;
+
+		proto_tree *per_timestamp_tree = proto_item_add_subtree(number_entries_ti, ett_qortal_sub);
+
+		proto_tree_add_item(per_timestamp_tree, hf_timestamp, tvb, offset, 8, ENC_TIME_MSECS);
+		offset += 8;
+
+		for (guint i = 0; i < number_entries; ++i) {
+			proto_item *entry_index_ti = proto_tree_add_uint(per_timestamp_tree, hf_entry_index, tvb, offset, 0, i);
+			proto_tree *entry_tree = proto_item_add_subtree(entry_index_ti, ett_qortal_sub);
+
+			proto_tree_add_item(entry_tree, hf_generic_sig, tvb, offset, 64, ENC_NA);
+			offset += 64;
+
+			proto_tree_add_item(entry_tree, hf_public_key, tvb, offset, 32, ENC_NA);
+			offset += 32;
+		}
+
+		if (offset - start_offset < data_size) {
+			number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+			offset += 4;
+		} else {
+			number_entries = 0;
+		}
+	}
+
+	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
+}
+
+static void dissect_get_online_accounts_v2(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, guint data_size) {
+	gint start_offset = offset;
+
+	proto_item *ti = proto_tree_add_item(tree, msg_get_online_accounts_v2, tvb, offset, -1, ENC_NA);
+	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
+
+	guint number_entries;
+	proto_item *number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+	offset += 4;
+
+	guint total_entries = 0;
+
+	while (number_entries > 0) {
+		total_entries += number_entries;
+
+		proto_tree *per_timestamp_tree = proto_item_add_subtree(number_entries_ti, ett_qortal_sub);
+
+		proto_tree_add_item(per_timestamp_tree, hf_timestamp, tvb, offset, 8, ENC_TIME_MSECS);
+		offset += 8;
+
+		for (guint i = 0; i < number_entries; ++i) {
+			proto_item *entry_index_ti = proto_tree_add_uint(per_timestamp_tree, hf_entry_index, tvb, offset, 0, i);
+			proto_tree *entry_tree = proto_item_add_subtree(entry_index_ti, ett_qortal_sub);
+
+			proto_tree_add_item(entry_tree, hf_public_key, tvb, offset, 32, ENC_NA);
+			offset += 32;
+		}
+
+		if (offset - start_offset < data_size) {
+			number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+			offset += 4;
+		} else {
+			number_entries = 0;
+		}
+	}
+
+	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
+}
+
+static void dissect_online_trades(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, gint data_size) {
+	gint start_offset = offset;
+
+	proto_item *ti = proto_tree_add_item(tree, msg_online_trades, tvb, offset, -1, ENC_NA);
+	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
+
+	guint number_entries;
+	proto_item *number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+	offset += 4;
+
+	guint total_entries = 0;
+
+	while (number_entries > 0) {
+		total_entries += number_entries;
+
+		proto_tree *per_timestamp_tree = proto_item_add_subtree(number_entries_ti, ett_qortal_sub);
+
+		proto_tree_add_item(per_timestamp_tree, hf_timestamp, tvb, offset, 8, ENC_TIME_MSECS);
+		offset += 8;
+
+		for (guint i = 0; i < number_entries; ++i) {
+			proto_item *entry_index_ti = proto_tree_add_uint(per_timestamp_tree, hf_entry_index, tvb, offset, 0, i);
+			proto_tree *entry_tree = proto_item_add_subtree(entry_index_ti, ett_qortal_sub);
+
+			proto_tree_add_item(entry_tree, hf_public_key, tvb, offset, 32, ENC_NA);
+			offset += 32;
+
+			proto_tree_add_item(entry_tree, hf_generic_sig, tvb, offset, 64, ENC_NA);
+			offset += 64;
+
+			proto_tree_add_item(entry_tree, hf_raw_address, tvb, offset, 25, ENC_NA);
+			offset += 25;
+
+			// Conversion of raw_address to Base58 would go here
+		}
+
+		if (offset - start_offset < data_size) {
+			number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+			offset += 4;
+		} else {
+			number_entries = 0;
+		}
+	}
+
+	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
+}
+
+static void dissect_get_online_trades(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, guint data_size) {
+	gint start_offset = offset;
+
+	proto_item *ti = proto_tree_add_item(tree, msg_get_online_trades, tvb, offset, -1, ENC_NA);
+	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
+
+	guint number_entries;
+	proto_item *number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+	offset += 4;
+
+	guint total_entries = 0;
+
+	while (number_entries > 0) {
+		total_entries += number_entries;
+
+		proto_tree *per_timestamp_tree = proto_item_add_subtree(number_entries_ti, ett_qortal_sub);
+
+		proto_tree_add_item(per_timestamp_tree, hf_timestamp, tvb, offset, 8, ENC_TIME_MSECS);
+		offset += 8;
+
+		for (guint i = 0; i < number_entries; ++i) {
+			proto_item *entry_index_ti = proto_tree_add_uint(per_timestamp_tree, hf_entry_index, tvb, offset, 0, i);
+			proto_tree *entry_tree = proto_item_add_subtree(entry_index_ti, ett_qortal_sub);
+
+			proto_tree_add_item(entry_tree, hf_public_key, tvb, offset, 32, ENC_NA);
+			offset += 32;
+		}
+
+		if (offset - start_offset < data_size) {
+			number_entries_ti = proto_tree_add_item_ret_uint(sub_tree, hf_number_entries, tvb, offset, 4, ENC_BIG_ENDIAN, &number_entries);
+			offset += 4;
+		} else {
+			number_entries = 0;
+		}
+	}
+
+	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
+}
+
 static int dissect_qortal_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
 	gint offset = 0;
 
@@ -648,6 +832,22 @@ static int dissect_qortal_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
 			case 81: // GET_ONLINE_ACCOUNTS
 				dissect_get_online_accounts(tvb, offset, pinfo, tree, data);
+				break;
+
+			case 82: // ONLINE_ACCOUNTS_V2
+				dissect_online_accounts_v2(tvb, offset, pinfo, tree, data, data_size);
+				break;
+
+			case 83: // GET_ONLINE_ACCOUNTS_V2
+				dissect_get_online_accounts_v2(tvb, offset, pinfo, tree, data, data_size);
+				break;
+
+			case 140: // ONLINE_TRADES
+				dissect_online_trades(tvb, offset, pinfo, tree, data, data_size);
+				break;
+
+			case 141: // GET_ONLINE_TRADES
+				dissect_get_online_trades(tvb, offset, pinfo, tree, data, data_size);
 				break;
 
 			default:
@@ -878,6 +1078,24 @@ void proto_register_qortal(void) {
 				"Public key",
 				"qortal.public_key",
 				FT_BYTES, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&hf_raw_address, {
+				"Address",
+				"qortal.raw_address",
+				FT_BYTES, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&hf_address, {
+				"Address",
+				"qortal.address",
+				FT_STRING, BASE_NONE,
 				NULL, 0x0,
 				NULL, HFILL
 			}
@@ -1149,6 +1367,42 @@ void proto_register_qortal(void) {
 			&msg_get_online_accounts, {
 				"GET_ONLINE_ACCOUNTS",
 				"qortal.msg.get_online_accounts",
+				FT_NONE, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&msg_online_accounts_v2, {
+				"ONLINE_ACCOUNTS_V2",
+				"qortal.msg.online_accounts_v2",
+				FT_NONE, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&msg_get_online_accounts_v2, {
+				"GET_ONLINE_ACCOUNTS_V2",
+				"qortal.msg.get_online_accounts_v2",
+				FT_NONE, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&msg_online_trades, {
+				"ONLINE_TRADES",
+				"qortal.msg.online_trades",
+				FT_NONE, BASE_NONE,
+				NULL, 0x0,
+				NULL, HFILL
+			}
+		},
+		{
+			&msg_get_online_trades, {
+				"GET_ONLINE_TRADES",
+				"qortal.msg.get_online_trades",
 				FT_NONE, BASE_NONE,
 				NULL, 0x0,
 				NULL, HFILL
