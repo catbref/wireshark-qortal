@@ -60,8 +60,8 @@ static const value_string message_type_names[] = {
 	{ 120, "ARBITRARY_DATA_FILE_LIST" },
 	{ 121, "GET_ARBITRARY_DATA_FILE_LIST" },
 	{ 130, "ARBITRARY_SIGNATURES" },
-	{ 140, "ONLINE_TRADES" },
-	{ 141, "GET_ONLINE_TRADES" },
+	{ 140, "TRADE_PRESENCES" },
+	{ 141, "GET_TRADE_PRESENCES" },
 	{ 0, NULL }
 };
 
@@ -145,8 +145,8 @@ static int msg_online_accounts = -1;
 static int msg_get_online_accounts = -1;
 static int msg_online_accounts_v2 = -1;
 static int msg_get_online_accounts_v2 = -1;
-static int msg_online_trades = -1;
-static int msg_get_online_trades = -1;
+static int msg_trade_presences = -1;
+static int msg_get_trade_presences = -1;
 
 static gint ett_qortal = -1;
 static gint ett_qortal_sub = -1;
@@ -591,10 +591,10 @@ static void dissect_get_online_accounts_v2(tvbuff_t *tvb, gint offset, packet_in
 	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
 }
 
-static void dissect_online_trades(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, gint data_size) {
+static void dissect_trade_presences(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, gint data_size) {
 	gint start_offset = offset;
 
-	proto_item *ti = proto_tree_add_item(tree, msg_online_trades, tvb, offset, -1, ENC_NA);
+	proto_item *ti = proto_tree_add_item(tree, msg_trade_presences, tvb, offset, -1, ENC_NA);
 	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
 
 	guint number_entries;
@@ -638,10 +638,10 @@ static void dissect_online_trades(tvbuff_t *tvb, gint offset, packet_info *pinfo
 	col_append_fstr(pinfo->cinfo, COL_INFO, "num_entries=%d ", total_entries);
 }
 
-static void dissect_get_online_trades(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, guint data_size) {
+static void dissect_get_trade_presences(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, void *data _U_, guint data_size) {
 	gint start_offset = offset;
 
-	proto_item *ti = proto_tree_add_item(tree, msg_get_online_trades, tvb, offset, -1, ENC_NA);
+	proto_item *ti = proto_tree_add_item(tree, msg_get_trade_presences, tvb, offset, -1, ENC_NA);
 	proto_tree *sub_tree = proto_item_add_subtree(ti, ett_qortal_sub);
 
 	guint number_entries;
@@ -842,12 +842,12 @@ static int dissect_qortal_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 				dissect_get_online_accounts_v2(tvb, offset, pinfo, tree, data, data_size);
 				break;
 
-			case 140: // ONLINE_TRADES
-				dissect_online_trades(tvb, offset, pinfo, tree, data, data_size);
+			case 140: // TRADE_PRESENCES
+				dissect_trade_presences(tvb, offset, pinfo, tree, data, data_size);
 				break;
 
-			case 141: // GET_ONLINE_TRADES
-				dissect_get_online_trades(tvb, offset, pinfo, tree, data, data_size);
+			case 141: // GET_TRADE_PRESENCES
+				dissect_get_trade_presences(tvb, offset, pinfo, tree, data, data_size);
 				break;
 
 			default:
@@ -1391,18 +1391,18 @@ void proto_register_qortal(void) {
 			}
 		},
 		{
-			&msg_online_trades, {
-				"ONLINE_TRADES",
-				"qortal.msg.online_trades",
+			&msg_trade_presences, {
+				"TRADE_PRESENCES",
+				"qortal.msg.trade_presences",
 				FT_NONE, BASE_NONE,
 				NULL, 0x0,
 				NULL, HFILL
 			}
 		},
 		{
-			&msg_get_online_trades, {
-				"GET_ONLINE_TRADES",
-				"qortal.msg.get_online_trades",
+			&msg_get_trade_presences, {
+				"GET_TRADE_PRESENCES",
+				"qortal.msg.get_trade_presences",
 				FT_NONE, BASE_NONE,
 				NULL, 0x0,
 				NULL, HFILL
